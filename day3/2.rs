@@ -30,12 +30,12 @@ fn main() {
     //     })
 
     let mut badges = Vec::new();
-    for group in bags.chunks(3) {
+    'groups: for group in bags.chunks(3) {
         for d in &group[0] {
             if group[1].contains(d) && group[2].contains(d) {
               // println!("adding {:?}, from group {:?}",*d, group);
                 badges.push(*d);
-                break;
+                continue 'groups;
             }
         }
     }
