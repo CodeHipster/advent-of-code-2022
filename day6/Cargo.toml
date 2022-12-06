@@ -1,9 +1,10 @@
 [package]
 edition = '2021'
-name = "advent_of_code_day5"
+name = "advent_of_code_day6"
 version = "1.0.0"
 authors = ["Thijs"]
 
 [dependencies]
 itertools = "0.10.5"
 range-set = "0.0.9"
+substring = "1.4.5"

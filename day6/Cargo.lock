@@ -3,11 +3,12 @@
 version = 3
 
 [[package]]
-name = "advent_of_code_day4"
+name = "advent_of_code_day6"
 version = "1.0.0"
 dependencies = [
  "itertools",
  "range-set",
+ "substring",
 ]
 
 [[package]]
@@ -55,3 +56,12 @@ name = "smallvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
+
+[[package]]
+name = "substring"
+version = "1.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42ee6433ecef213b2e72f587ef64a2f5943e7cd16fbd82dbe8bc07486c534c86"
+dependencies = [
+ "autocfg",
+]
