@@ -4,7 +4,6 @@ use std::io::{self, BufRead};
 use std::path::Path;
 use std::str;
 use std::time::Instant;
-
 fn main() {
     let now = Instant::now();
 

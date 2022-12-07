@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+use std::time::Instant;
 
 trait BagExt{
   fn total_calories(&self) -> u32;
@@ -19,6 +20,8 @@ impl BagExt for Bag{
 }
 
 fn main() {
+
+  let now = Instant::now();
   // read file into type
     let mut elves: Vec<Bag> = Vec::new();
     let mut bag = Vec::new();
@@ -58,6 +61,8 @@ fn main() {
       total += bag.total_calories();
     }
     println!("total: {total}");
+
+    println!("found answer in {:0.2?}",now.elapsed());
 
 }
 

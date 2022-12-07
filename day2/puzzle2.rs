@@ -1,8 +1,11 @@
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
+use std::time::Instant;
 
 fn main() {
+
+  let now = Instant::now();
     let win = 6;
     let draw = 3;
     let loss = 0;
@@ -45,6 +48,8 @@ fn main() {
     // println!("{}", type_of(&moves));
 
     println!("score: {score}");
+
+    println!("found answer in {:0.2?}",now.elapsed());
     // match 3 *3
 }
 
