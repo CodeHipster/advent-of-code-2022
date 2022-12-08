@@ -1,6 +1,6 @@
 [package]
 edition = '2021'
-name = "advent_of_code_day7"
+name = "advent_of_code_day8"
 version = "1.0.0"
 authors = ["Thijs"]
 
