@@ -85,7 +85,7 @@ fn main() {
             *scores.entry(tree).or_insert(1) *= score;
             // bottom
             let mut score = 0;
-            for y in (tree.y..height) {
+            for y in tree.y..height {
                 let tree_line = grid.get(y).unwrap();
                 let comp = tree_line.get(tree.x).unwrap();
                 if tree == comp {
@@ -101,7 +101,7 @@ fn main() {
         }
     }
 
-    let mut answer = scores.iter().map(|(_,v)| v).max();
+    let answer = scores.iter().map(|(_,v)| v).max();
     println!("found answer: {answer:?}, in {:0.2?}", now.elapsed());
 }
 
