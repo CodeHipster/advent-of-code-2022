@@ -6,8 +6,6 @@ use std::fs;
 use std::str;
 use std::time::Instant;
 
-use itertools::Itertools;
-
 #[derive(Eq, Hash, PartialEq, Debug)]
 struct Pos {
     x: i32,
@@ -23,18 +21,8 @@ impl Display for Rope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         //print the snake
         // find min and max positions
-        let max = self
-            .parts
-            .iter()
-            .map(|part| max(max(part.head.x, part.head.y), max(part.tail.x, part.tail.y)))
-            .max()
-            .unwrap();
-        let min = self
-            .parts
-            .iter()
-            .map(|part| min(min(part.head.x, part.head.y), min(part.tail.x, part.tail.y)))
-            .min()
-            .unwrap();
+        let max = self.parts.iter().map(|part| max(max(part.head.x, part.head.y), max(part.tail.x, part.tail.y))).max().unwrap();
+        let min = self.parts.iter().map(|part| min(min(part.head.x, part.head.y), min(part.tail.x, part.tail.y))).min().unwrap();
 
         // make a grid
         let offset = -min;
@@ -46,10 +34,7 @@ impl Display for Rope {
         // add ropeparts to the grid
         let head = &self.parts[0].head;
         grid[(m - (head.y + offset)) as usize][(head.x + offset) as usize] = "H".to_owned();
-        self.parts.iter().enumerate().for_each(|(index, part)| {
-            grid[(m - (part.tail.y + offset)) as usize][(part.tail.x + offset) as usize] =
-                (index+1).to_string()
-        });
+        self.parts.iter().enumerate().for_each(|(index, part)| grid[(m - (part.tail.y + offset)) as usize][(part.tail.x + offset) as usize] = (index + 1).to_string());
 
         // print the grid
         for row in grid {
@@ -89,10 +74,7 @@ impl Pos {
         self.y += other.y;
     }
     fn sub(&self, other: &Pos) -> Pos {
-        Pos {
-            x: self.x - other.x,
-            y: self.y - other.y,
-        }
+        Pos { x: self.x - other.x, y: self.y - other.y }
     }
 }
 
@@ -102,42 +84,15 @@ fn main() {
     let mut positions: HashSet<Pos> = HashSet::new();
     let mut rope = Rope {
         parts: vec![
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
-            RopePart {
-                head: Pos { x: 0, y: 0 },
-                tail: Pos { x: 0, y: 0 },
-            },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
+            RopePart { head: Pos { x: 0, y: 0 }, tail: Pos { x: 0, y: 0 } },
         ],
     };
 
@@ -171,40 +126,26 @@ fn main() {
         })
         .for_each(|mv| move_rope(&mv, &mut rope, &mut positions));
 
-    println!(
-        "found answer: {:?}, in {:0.2?}",
-        positions.len(),
-        now.elapsed()
-    );
+    println!("found answer: {:?}, in {:0.2?}", positions.len(), now.elapsed());
 }
 
 fn move_rope(mv: &Move, rope: &mut Rope, positions: &mut HashSet<Pos>) {
     // loop n times
-    // println!("moving: {mv:?}");
-    for i in 0..mv.n {
-        // println!("nr: {i:?}, rope: {rope:?}");
+    for _ in 0..mv.n {
         //move rope head
         rope.parts[0].head.add(mv.tr);
         move_tail(&mut rope.parts[0]);
         // move each rope part
         for i in 1..rope.parts.len() {
-          // println!("moving part: {i:?}");
-          // println!("previous part: {:?}",rope.parts[i - 1]);
-          // println!("current part: {:?}",rope.parts[i]);
-          // quick hack to align knots
-          rope.parts[i].head.x = rope.parts[i - 1].tail.x;
-          rope.parts[i].head.y = rope.parts[i - 1].tail.y;
-          move_tail(&mut rope.parts[i]);
-          // println!("after move: {:?}",rope.parts[i]);
+            // quick hack to align knots
+            rope.parts[i].head.x = rope.parts[i - 1].tail.x;
+            rope.parts[i].head.y = rope.parts[i - 1].tail.y;
+            move_tail(&mut rope.parts[i]);
         }
 
         //add tail pos to hashset
-        positions.insert(Pos {
-            x: rope.parts[8].tail.x,
-            y: rope.parts[8].tail.y,
-        });
+        positions.insert(Pos { x: rope.parts[8].tail.x, y: rope.parts[8].tail.y });
     }
-    // println!("{rope}");
 }
 
 fn move_tail(part: &mut RopePart) {
