@@ -1,0 +1,8 @@
+[package]
+edition = '2021'
+name = "advent_of_code_day10"
+version = "1.0.0"
+authors = ["Thijs"]
+
+[dependencies]
+range-set = "0.0.9"
