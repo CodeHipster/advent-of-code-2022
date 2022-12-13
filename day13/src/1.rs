@@ -12,31 +12,33 @@ fn main() {
 
   let file = read_file("input.txt");
 
-  let packets = file
-    .lines()
-    .filter(|line| !line.is_empty())
-    .map(|line| serde_json::from_str::<Value>(line).unwrap())
-    .sorted_by(move |a, b| match compare(Some(a.to_owned()), Some(b.to_owned()), 0) {
-      Some(true) => std::cmp::Ordering::Less,
-      Some(false) => std::cmp::Ordering::Greater,
-      None => std::cmp::Ordering::Equal,
-    })
-    .collect::<Vec<_>>();
+  let mut answer = 0;
+  let mut index = 1;
 
-  for packet in &packets {
-    println!("{packet}");
-  }
-  // [[2]]
-  // [[6]]
-  let index1 = &packets.iter().position(|p| *p == serde_json::from_str::<Value>("[[2]]").unwrap()).unwrap() +1;
-  let index2 = &packets.iter().position(|p| *p == serde_json::from_str::<Value>("[[6]]").unwrap()).unwrap() +1;
-let answer = index1 * index2;
+  file.lines().tuples().for_each(|(left, right, _)| {
+    println!("\n== Pair {index} ==");
+    // compare left to right
+    let left: Value = serde_json::from_str(left).unwrap();
+    let right: Value = serde_json::from_str(right).unwrap();
+    match compare(Some(left), Some(right), 0) {
+      Some(false) => println!(", so inputs are not in the right order"),
+      Some(true) => {
+        println!(", so inputs are in the right order");
+        answer += index;
+      }
+      None => {
+        panic!("unexpected outcome!");
+      }
+    }
+    index += 1;
+  });
+
   println!("found answer: {answer} in {:0.2?}", now.elapsed());
 }
 
 fn compare(left: Option<Value>, right: Option<Value>, level: usize) -> Option<bool> {
-  // print!("{:pad$}", "", pad = level);
-  // println!("- Compare: {left:?} vs {right:?}");
+  print!("{:pad$}", "", pad = level);
+  println!("- Compare: {left:?} vs {right:?}");
   match (left, right) {
     (Some(Value::Array(l)), Some(Value::Array(r))) => {
       // we need to pop_front
@@ -58,42 +60,42 @@ fn compare(left: Option<Value>, right: Option<Value>, level: usize) -> Option<bo
     }
     (Some(Value::Number(l)), Some(Value::Array(r))) => {
       //wrap value in array
-      // print!("{:pad$}", "", pad = level);
-      // println!("- Mixed types; convert left to [{l}] and retry comparison");
+      print!("{:pad$}", "", pad = level);
+      println!("- Mixed types; convert left to [{l}] and retry comparison");
       let wrap = Value::Array(vec![Value::Number(l.clone())]);
       return compare(Some(wrap), Some(Value::Array(r)), level + 1);
     }
     (Some(Value::Array(l)), Some(Value::Number(r))) => {
-      // print!("{:pad$}", "", pad = level);
-      // println!("- Mixed types; convert right to [{r}] and retry comparison");
+      print!("{:pad$}", "", pad = level);
+      println!("- Mixed types; convert right to [{r}] and retry comparison");
       //wrap value in array
       let wrap = Value::Array(vec![Value::Number(r.clone())]);
       return compare(Some(Value::Array(l)), Some(wrap), level + 1);
     }
     (Some(Value::Number(l)), Some(Value::Number(r))) => {
       if l.as_u64() < r.as_u64() {
-        // print!("{:pad$}", "", pad = level);
-        // print!("- Left side is smaller");
+        print!("{:pad$}", "", pad = level);
+        print!("- Left side is smaller");
         return Some(true);
       } else if l.as_u64() > r.as_u64() {
-        // print!("{:pad$}", "", pad = level);
-        // print!("- Right side is smaller");
+        print!("{:pad$}", "", pad = level);
+        print!("- Right side is smaller");
         return Some(false);
       } else {
         return None;
       };
     }
     (None, Some(_)) => {
-      // print!("{:pad$}", "", pad = level);
-      // print!("- Left side ran out of items");
+      print!("{:pad$}", "", pad = level);
+      print!("- Left side ran out of items");
       return Some(true);
     }
     (Some(_), None) => {
-      // print!("{:pad$}", "", pad = level);
-      // print!("- Right side ran out of items");
+      print!("{:pad$}", "", pad = level);
+      print!("- Right side ran out of items");
       return Some(false);
     }
-    (None, None) => {
+    (None, None) =>{
       // both ran out of items at the same time
       return None;
     }
