@@ -1,104 +1,67 @@
 use core::panic;
-use std::collections::VecDeque;
 use std::fs;
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
 use std::str;
 use std::time::Instant;
-
-use itertools::Itertools;
-use serde_json::Value;
 
 fn main() {
   let now = Instant::now();
 
-  let file = read_file("input.txt");
+  let mut index2 = 1;
+  let mut index6 = 2;
 
-  let packets = file
-    .lines()
-    .filter(|line| !line.is_empty())
-    .map(|line| serde_json::from_str::<Value>(line).unwrap())
-    .sorted_by(move |a, b| match compare(Some(a.to_owned()), Some(b.to_owned()), 0) {
-      Some(true) => std::cmp::Ordering::Less,
-      Some(false) => std::cmp::Ordering::Greater,
-      None => std::cmp::Ordering::Equal,
-    })
-    .collect::<Vec<_>>();
-
-  for packet in &packets {
-    println!("{packet}");
-  }
-  // [[2]]
-  // [[6]]
-  let index1 = &packets.iter().position(|p| *p == serde_json::from_str::<Value>("[[2]]").unwrap()).unwrap() +1;
-  let index2 = &packets.iter().position(|p| *p == serde_json::from_str::<Value>("[[6]]").unwrap()).unwrap() +1;
-let answer = index1 * index2;
+  // reading the entire file is faster, than going line by line.
+  read_file("input.txt").lines().filter(|line| !line.is_empty()).for_each(|line| {
+    // read_lines("input.txt").map(|line| line.unwrap()).filter(|line| !line.is_empty()).for_each(|line| {
+    // println!("Finding first value in line: {line}");
+    line
+      .as_bytes()
+      .windows(2)
+      .map(|b| {
+        // print!("comparing {} {}, ({})({})", b[0] as char, b[1] as char, b[0], b[1]);
+        match b {
+          [91, 93] => {
+            // [] : no value is smaller than 2 & 6
+            index2 += 1;
+            index6 += 1;
+            // println!(" -> found empty array -> 2:{index2}, 6:{index6}");
+            return true;
+          }
+          [val, 44] | [val, 93] => {
+            // x, | x] : compare value with (50)2 & 54()6
+            // println!("-> found: {}", val - 48);
+            if val < &54 {
+              index6 += 1;
+              // println!(" -> 6:{index6}");
+            } else {
+              // println!(" -> bigger than both");
+              return true;
+            }
+            if val < &50 {
+              index2 += 1;
+              // println!(" -> 2:{index2}");
+            }
+            return true;
+          }[49, 48] => {
+            // 10 : bigger than both
+            return true;
+          }
+          _ => {
+            // println!(" -> nopes");
+            return false;
+          }
+        }
+      })
+      .find(|result| *result);
+  });
+  //answer:  index 2 = 133, index6 = 195
+  //mine... index 2 = 160, index6 = 223
+  // 27 & 28 diff
+  println!("index 2 = {index2}, index6 = {index6}");
+  let answer = index2 * index6;
   println!("found answer: {answer} in {:0.2?}", now.elapsed());
-}
-
-fn compare(left: Option<Value>, right: Option<Value>, level: usize) -> Option<bool> {
-  // print!("{:pad$}", "", pad = level);
-  // println!("- Compare: {left:?} vs {right:?}");
-  match (left, right) {
-    (Some(Value::Array(l)), Some(Value::Array(r))) => {
-      // we need to pop_front
-      let mut l = VecDeque::from(l);
-      let mut r = VecDeque::from(r);
-      // compare each value.
-      loop {
-        let l_val = l.pop_front();
-        let r_val = r.pop_front();
-        if l_val == None && r_val == None {
-          // both lists are empty at the same time, continue i guess?
-          return None;
-        }
-        if let Some(val) = compare(l_val, r_val, level + 1) {
-          return Some(val); // order is decided
-        }
-        // else continue to loop
-      }
-    }
-    (Some(Value::Number(l)), Some(Value::Array(r))) => {
-      //wrap value in array
-      // print!("{:pad$}", "", pad = level);
-      // println!("- Mixed types; convert left to [{l}] and retry comparison");
-      let wrap = Value::Array(vec![Value::Number(l.clone())]);
-      return compare(Some(wrap), Some(Value::Array(r)), level + 1);
-    }
-    (Some(Value::Array(l)), Some(Value::Number(r))) => {
-      // print!("{:pad$}", "", pad = level);
-      // println!("- Mixed types; convert right to [{r}] and retry comparison");
-      //wrap value in array
-      let wrap = Value::Array(vec![Value::Number(r.clone())]);
-      return compare(Some(Value::Array(l)), Some(wrap), level + 1);
-    }
-    (Some(Value::Number(l)), Some(Value::Number(r))) => {
-      if l.as_u64() < r.as_u64() {
-        // print!("{:pad$}", "", pad = level);
-        // print!("- Left side is smaller");
-        return Some(true);
-      } else if l.as_u64() > r.as_u64() {
-        // print!("{:pad$}", "", pad = level);
-        // print!("- Right side is smaller");
-        return Some(false);
-      } else {
-        return None;
-      };
-    }
-    (None, Some(_)) => {
-      // print!("{:pad$}", "", pad = level);
-      // print!("- Left side ran out of items");
-      return Some(true);
-    }
-    (Some(_), None) => {
-      // print!("{:pad$}", "", pad = level);
-      // print!("- Right side ran out of items");
-      return Some(false);
-    }
-    (None, None) => {
-      // both ran out of items at the same time
-      return None;
-    }
-    _ => panic!("un expected input."),
-  }
 }
 
 fn read_file(filename: &str) -> String {
@@ -108,4 +71,18 @@ fn read_file(filename: &str) -> String {
       panic!("There was a problem opening the file: {:?}", error)
     }
   }
+}
+
+// The output is wrapped in a Result to allow matching on errors
+// Returns an Iterator to the Reader of the lines of the file.
+fn read_lines<P>(filename: P) -> io::Lines<io::BufReader<File>>
+where
+    P: AsRef<Path>,
+{
+    match File::open(filename) {
+        Ok(file) => io::BufReader::new(file).lines(),
+        Err(error) => {
+            panic!("There was a problem opening the file: {:?}", error)
+        }
+    }
 }
