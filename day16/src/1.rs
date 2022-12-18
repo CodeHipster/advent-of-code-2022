@@ -7,74 +7,55 @@ use std::time::Instant;
 
 use itertools::Itertools;
 
-#[derive(Clone)]
 struct State {
   marked: HashSet<u16>, //opened or skipped due to 0 flow rate.
   pos: u16,
-  previous: u16,
-  last_action: u16,
-  e_pos: u16,
-  e_prev: u16,
-  e_last_action: u16,
   time: u8,
   pressure: u32,
+  previous: u16,
 }
 
 impl State {
   fn new(pos: u16) -> State {
-    // TODO: keep a path since last action, if position is in this path, abort, going in circles.
     State {
       marked: HashSet::new(),
       pos,
-      previous: pos,
-      last_action: pos,
-      e_pos: pos,
-      e_prev: pos,
-      e_last_action: pos,
       time: 0,
       pressure: 0,
+      previous: pos,
     }
   }
-
-  fn next(&self) -> State {
-    let mut clone = self.clone();
-    clone.time += 1;
-    clone.previous = self.pos;
-    clone.e_prev = self.e_pos;
-    clone
+  fn open(&self, flow: u8) -> State {
+    let mut marked = self.marked.clone();
+    marked.insert(self.pos);
+    let time = self.time + 1;
+    let pressure = self.pressure + (30 - time as u32) * (flow as u32);
+    // println!("opening: {self}");
+    return State {
+      marked,
+      pos: self.pos,
+      time,
+      pressure,
+      previous: self.pos,
+    };
   }
-
-  fn open_elephant(&mut self, flow: u8) {
-    self.marked.insert(self.e_pos);
-    self.e_last_action = self.e_pos;
-    self.pressure = self.pressure + (26 - self.time as u32) * (flow as u32);
-  }
-
-  fn open_me(&mut self, flow: u8) {
-    self.marked.insert(self.pos);
-    self.last_action = self.pos;
-    self.pressure = self.pressure + (26 - self.time as u32) * (flow as u32);
-  }
-
-  fn mv_elephant(&mut self, target: u16) {
-    self.e_prev = self.e_pos;
-    self.e_pos = target;
-  }
-  fn mv_me(&mut self, target: u16) {
-    self.previous = self.pos;
-    self.pos = target;
+  //TODO: would be nice to have the compiler be able to guarantee that target is a valid pos.
+  fn mv(&self, target: u16) -> State {
+    State {
+      marked: self.marked.clone(),
+      pos: target,
+      time: self.time + 1,
+      pressure: self.pressure,
+      previous: self.pos
+    }
   }
 }
 
 impl Display for State {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     let pos = String::from_utf8(vec![(self.pos >> 8) as u8, self.pos as u8]).unwrap();
-    let e_pos = String::from_utf8(vec![(self.e_pos >> 8) as u8, self.e_pos as u8]).unwrap();
-    let previous = String::from_utf8(vec![(self.previous >> 8) as u8, self.previous as u8]).unwrap();
-    let e_prev = String::from_utf8(vec![(self.e_prev >> 8) as u8, self.e_prev as u8]).unwrap();
-    write!(f, "time: {}, pressure: {}, me: {pos}, me_prev: {previous}, elephant: {e_pos}, e_prev: {e_prev} ,marked: [", 
-    self.time, self.pressure)?;
-    for v in &self.marked {
+    write!(f, "pos: {pos}, time: {}, pressure: {}, marked: [", self.time, self.pressure)?;
+    for v in &self.marked{
       let v_pos = String::from_utf8(vec![(*v >> 8) as u8, *v as u8]).unwrap();
       write!(f, "{v_pos},")?;
     }
@@ -105,7 +86,7 @@ fn main() {
   let mut valve_map: HashMap<u16, Valve> = HashMap::new();
   let mut valve_connections: HashMap<u16, Vec<u16>> = HashMap::new();
 
-  read_file("test.txt")
+  read_file("input.txt")
     .lines()
     .map(|line| line.split(";").next_tuple::<(_, _)>().unwrap())
     .for_each(|(valve, connections)| {
@@ -129,12 +110,12 @@ fn main() {
       break;
     }
     let state = state.unwrap();
-    if state.pressure > answer {
+    if state.pressure > answer { 
       answer = state.pressure;
       println!("highest: {state}");
     }
     // println!("checking state: {state}");
-    let mut options = next_states(&state, &valve_connections, &valve_map);
+    let mut options = next_states(&state, valve_connections.get(&state.pos).unwrap(), &valve_map);
     states.append(&mut options);
     states_checked += 1;
   }
@@ -143,49 +124,23 @@ fn main() {
   println!("found answer: {answer} in {:0.2?}", now.elapsed());
 }
 
-fn next_states(current: &State, connections: &HashMap<u16, Vec<u16>>, valve_map: &HashMap<u16, Valve>) -> Vec<State> {
+fn next_states(current: &State, connections: &Vec<u16>, valve_map: &HashMap<u16, Valve>) -> Vec<State> {
   // println!("resolving state: {current}");
   let mut result = vec![];
-  let mut my_moves = vec![];
-  if current.time == 26 {
+  if current.time == 30 {
     return result;
   }
-  // me
   let flow = valve_map.get(&current.pos).unwrap().flow;
   if flow != 0 && !current.marked.contains(&current.pos) {
-    let mut n = current.next();
-    n.open(current.pos, flow);
+    let n = current.open(flow);
     // println!("added: {n}");
-    my_moves.push(n);
+    result.push(n);
   }
-  let cons = connections.get(&current.pos).unwrap();
-  for connection in cons {
-    if *connection != current.previous {
-      let mut n = current.next();
-      n.mv_me(*connection);
-      // println!("added: {n}");
-      my_moves.push(n);
-    }
-  }
-
-  // for each move I do, add moves elephant makes
-  for my_mv in my_moves {
-    // elephant
-    let flow = valve_map.get(&current.e_pos).unwrap().flow;
-    if flow != 0 && !my_mv.marked.contains(&current.e_pos) {
-      let mut n = my_mv.clone();
-      n.open(current.e_pos, flow);
+  for connection in connections {
+    if *connection != current.previous{
+      let n = current.mv(*connection);
       // println!("added: {n}");
       result.push(n);
-    }
-    let cons = connections.get(&current.e_pos).unwrap();
-    for connection in cons {
-      if *connection != current.e_prev {
-        let mut n = my_mv.clone();
-        n.mv_elephant(*connection);
-        // println!("added: {n}");
-        result.push(n);
-      }
     }
   }
   result
