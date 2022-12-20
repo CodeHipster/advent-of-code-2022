@@ -1,5 +1,3 @@
-mod path;
-
 use core::panic;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
@@ -124,9 +122,8 @@ fn main() {
   let now = Instant::now();
   let mut valve_map: HashMap<u16, Valve> = HashMap::new();
   let mut valve_connections: HashMap<u16, Vec<u16>> = HashMap::new();
-  let mut valves_to_open: Vec<u16> = vec![];
 
-  read_file("test.txt")
+  read_file("input.txt")
     .lines()
     .map(|line| line.split(";").next_tuple::<(_, _)>().unwrap())
     .for_each(|(valve, connections)| {
@@ -137,32 +134,31 @@ fn main() {
       let valve = Valve::new(id, *flow);
       valve_map.insert(id, valve);
       valve_connections.insert(id, connections);
-      if *flow > 0{
-        valves_to_open.push(id);
-      }
     });
 
   let start = parse("AA");
 
-  let mut distance_map: HashMap<u16, HashMap<u16, usize>> = HashMap::new();
-  let neighbour_function = |n| valve_connections.get(&n).unwrap().to_vec();
-  distance_map.insert(start, path::distance_map(start, neighbour_function));
-  for v in valves_to_open {
-    distance_map.insert(v, path::distance_map(v, neighbour_function));
-  }
-  
-  for (node, hops) in distance_map{
-    let id = String::from_utf8(vec![(node >> 8) as u8, node as u8]).unwrap();
-    println!("Distance from {id}:");
-    for (n, h) in hops{
-      let i = String::from_utf8(vec![(n >> 8) as u8, n as u8]).unwrap();
-      println!("  {i}:{h}");
+  let mut answer = 0;
+  let mut states = vec![State::new(start)];
+  let mut states_checked = 0;
+  loop {
+    let state = states.pop();
+    if let None = state {
+      break;
     }
-    println!("");
+    let state = state.unwrap();
+    if state.pressure > answer {
+      answer = state.pressure;
+      println!("highest: {state}");
+    }
+    // println!("checking state: {state}");
+    let mut options = next_states(&state, &valve_connections, &valve_map);
+    states.append(&mut options);
+    states_checked += 1;
   }
 
-  
-  println!("found answer: {} in {:0.2?}",0 , now.elapsed());
+  println!("states checked: {states_checked}");
+  println!("found answer: {answer} in {:0.2?}", now.elapsed());
 }
 
 fn next_states(current: &State, connections: &HashMap<u16, Vec<u16>>, valve_map: &HashMap<u16, Valve>) -> Vec<State> {
