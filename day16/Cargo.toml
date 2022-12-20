@@ -7,3 +7,4 @@ authors = ["Thijs"]
 [dependencies]
 itertools = "0.10.5"
 grid = "0.9.0"
+array_tool = "1.0.3"

@@ -7,98 +7,97 @@ use std::fs;
 use std::str;
 use std::time::Instant;
 
+use array_tool::vec::Uniq;
 use itertools::Itertools;
 
 #[derive(Clone)]
 struct State {
-  marked: HashSet<u16>, //opened or skipped due to 0 flow rate.
-  time: u8,
+  marked: HashSet<u16>,
   pressure: u32,
   operators: (Operator, Operator),
 }
 
 #[derive(Clone)]
 struct Operator {
-  name: String,
   position: u16,
-  path: HashSet<u16>, // path since last action, so we can detect running in circles.
+  time: u8,
 }
 
 impl Operator {
-  fn new(name: String, position: u16, path: HashSet<u16>) -> Operator {
-    Operator { name, position, path }
+  fn new(position: u16, time: u8) -> Operator {
+    Operator { position, time }
   }
 }
 
 impl State {
   fn new(pos: u16) -> State {
     State {
-      time: 0,
-      pressure: 0,
       marked: HashSet::new(),
-      operators: (Operator::new("me".to_string(), pos, HashSet::new()), Operator::new("elephant".to_string(), pos, HashSet::new())),
+      pressure: 0,
+      operators: (Operator::new(pos, 0), Operator::new(pos, 0)),
     }
   }
 
-  fn next(&self) -> State {
-    let mut clone = self.clone();
-    clone.time += 1;
-    clone
-  }
-
-  fn open_me(&mut self, flow: u8) {
-    self.pressure = self.pressure + (26 - self.time as u32) * (flow as u32);
-    let op = &mut self.operators.0;
-    self.marked.insert(op.position);
-    op.path = HashSet::new();
-    op.path.insert(op.position);
-  }
-
-  fn open_elephant(&mut self, flow: u8) {
-    // TODO: is the time calculation correct?
-    self.pressure = self.pressure + (26 - self.time as u32) * (flow as u32);
-    let op = &mut self.operators.1;
-    self.marked.insert(op.position);
-    op.path = HashSet::new();
-    op.path.insert(op.position);
-  }
-
-  fn mv_operator(op: &mut Operator, target: u16) -> Option<()> {
-    if op.path.contains(&target) {
-      return None;
+  fn next(&self, distance_map: &HashMap<u16, HashMap<u16, usize>>, valves_to_open: &Vec<Valve>) -> Vec<State>{
+    let mut result: Vec<State> = vec![];
+    let valves_left = valves_to_open.iter().filter(|v| !self.marked.contains(&v.id)).collect::<Vec<_>>();
+    if self.operators.0.time <= self.operators.1.time {
+      // move self.
+      for valve in valves_left {
+        let distance = distance_map.get(&self.operators.0.position).unwrap().get(&valve.id).unwrap();
+        let time = self.operators.0.time + *distance as u8 + 1;
+        if time >= 26 {
+          // reach the end of the time.
+          return result;
+        }
+        let pressure = self.pressure + (26 - time) as u32 * valve.flow as u32;
+        let mut marked = self.marked.clone();
+        marked.insert(valve.id);
+        let new_state = State {
+          marked,
+          pressure,
+          operators: (Operator::new(valve.id, time), self.operators.1.clone()),
+        };
+        result.push(new_state);
+      }
+    } else {
+      // move the elephant.
+      for valve in valves_left {
+        let distance = distance_map.get(&self.operators.1.position).unwrap().get(&valve.id).unwrap();
+        let time = self.operators.1.time + *distance as u8 + 1;
+        if time >= 26 {
+          // reach the end of the time.
+          return result;
+        }
+        let pressure = self.pressure + (26 - time) as u32 * valve.flow as u32;
+        let mut marked = self.marked.clone();
+        marked.insert(valve.id);
+        let new_state = State {
+          marked,
+          pressure,
+          operators: (self.operators.0.clone(),Operator::new(valve.id, time)),
+        };
+        result.push(new_state);
+      }
     }
-    op.path.insert(op.position);
-    op.position = target;
-    return Some(());
+    result
   }
 }
 
 impl Display for State {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    write!(f, "time: {}, pressure: {},marked: [", self.time, self.pressure)?;
+    write!(f, "pressure: {},marked: [", self.pressure)?;
     for v in &self.marked {
-      let v_pos = String::from_utf8(vec![(*v >> 8) as u8, *v as u8]).unwrap();
+      let v_pos = un_parse(v);
       write!(f, "{v_pos},")?;
     }
     writeln!(f, "]")?;
 
     let op = &self.operators.0;
-    let pos = String::from_utf8(vec![(op.position >> 8) as u8, op.position as u8]).unwrap();
-    write!(f, "   {}: position: {pos}, path: [", op.name)?;
-    for v in &op.path {
-      let p = String::from_utf8(vec![(*v >> 8) as u8, *v as u8]).unwrap();
-      write!(f, "{p},")?;
-    }
-    writeln!(f, "]")?;
+    write!(f, "   Me: position: {}, time: {}", un_parse(&op.position), op.time)?;
 
     let op = &self.operators.1;
-    let pos = String::from_utf8(vec![(op.position >> 8) as u8, op.position as u8]).unwrap();
-    write!(f, "   {}: position: {pos}, path: [", op.name)?;
-    for v in &op.path {
-      let p = String::from_utf8(vec![(*v >> 8) as u8, *v as u8]).unwrap();
-      write!(f, "{p},")?;
-    }
-    write!(f, "]")
+    write!(f, "   Elephant: position: {}, time: {}", un_parse(&op.position), op.time)
   }
 }
 
@@ -115,8 +114,7 @@ impl Valve {
 
 impl Display for Valve {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    let id = String::from_utf8(vec![(self.id >> 8) as u8, self.id as u8]).unwrap();
-    write!(f, "{}, {}", id, self.flow)
+    write!(f, "{}, {}", un_parse(&self.id), self.flow)
   }
 }
 
@@ -124,9 +122,9 @@ fn main() {
   let now = Instant::now();
   let mut valve_map: HashMap<u16, Valve> = HashMap::new();
   let mut valve_connections: HashMap<u16, Vec<u16>> = HashMap::new();
-  let mut valves_to_open: Vec<u16> = vec![];
+  let mut valves_to_open: Vec<Valve> = vec![];
 
-  read_file("test.txt")
+  read_file("input.txt")
     .lines()
     .map(|line| line.split(";").next_tuple::<(_, _)>().unwrap())
     .for_each(|(valve, connections)| {
@@ -137,88 +135,51 @@ fn main() {
       let valve = Valve::new(id, *flow);
       valve_map.insert(id, valve);
       valve_connections.insert(id, connections);
-      if *flow > 0{
-        valves_to_open.push(id);
+      if *flow > 0 {
+        valves_to_open.push(Valve::new(id, *flow));
       }
     });
 
   let start = parse("AA");
 
-  let mut distance_map: HashMap<u16, HashMap<u16, usize>> = HashMap::new();
-  let neighbour_function = |n| valve_connections.get(&n).unwrap().to_vec();
-  distance_map.insert(start, path::distance_map(start, neighbour_function));
-  for v in valves_to_open {
-    distance_map.insert(v, path::distance_map(v, neighbour_function));
+  let distance_map = distance_map(&valve_connections, start, &valves_to_open);
+  print_map(&distance_map);
+
+  let mut states: Vec<State> = vec![State::new(start)];
+
+  let mut answer = 0;
+  while let Some(state) = states.pop() {
+    if state.pressure > answer {
+      answer = state.pressure;
+      println!("found state: {state}");
+    }
+    let mut next_states = state.next(&distance_map, &valves_to_open);
+    states.append(&mut next_states);
   }
-  
-  for (node, hops) in distance_map{
-    let id = String::from_utf8(vec![(node >> 8) as u8, node as u8]).unwrap();
+
+  println!("found answer: {answer} in {:0.2?}", now.elapsed());
+}
+
+fn print_map(map: &HashMap<u16, HashMap<u16, usize>>) {
+  for (node, hops) in map {
+    let id = String::from_utf8(vec![(node >> 8) as u8, *node as u8]).unwrap();
     println!("Distance from {id}:");
-    for (n, h) in hops{
-      let i = String::from_utf8(vec![(n >> 8) as u8, n as u8]).unwrap();
+    for (n, h) in hops {
+      let i = String::from_utf8(vec![(n >> 8) as u8, *n as u8]).unwrap();
       println!("  {i}:{h}");
     }
     println!("");
   }
-
-  
-  println!("found answer: {} in {:0.2?}",0 , now.elapsed());
 }
 
-fn next_states(current: &State, connections: &HashMap<u16, Vec<u16>>, valve_map: &HashMap<u16, Valve>) -> Vec<State> {
-  // println!("resolving state: {current}");
-  let mut result = vec![];
-  let mut my_moves = vec![];
-  // TODO: check nr of open valves reached max?
-  if current.time == 26 {
-    return result;
+fn distance_map(valve_connections: &HashMap<u16, Vec<u16>>, start: u16, valves_to_open: &Vec<Valve>) -> HashMap<u16, HashMap<u16, usize>> {
+  let mut distance_map: HashMap<u16, HashMap<u16, usize>> = HashMap::new();
+  let neighbour_function = |n| valve_connections.get(&n).unwrap().to_vec();
+  distance_map.insert(start, path::distance_map(start, neighbour_function));
+  for v in valves_to_open {
+    distance_map.insert(v.id, path::distance_map(v.id, neighbour_function));
   }
-  // me
-  let op = &current.operators.0;
-  let flow = valve_map.get(&op.position).unwrap().flow;
-  if flow != 0 && !current.marked.contains(&op.position) {
-    let mut n = current.next();
-    n.open_me(flow);
-    my_moves.push(n);
-  }
-  let cons = connections.get(&op.position).unwrap();
-  for connection in cons {
-    let mut n = current.next();
-    let op = &mut n.operators.0;
-    if let Some(_) = State::mv_operator(op, *connection) {
-      my_moves.push(n);
-    }
-  }
-
-  // for each move I do, add moves elephant makes
-  for my_mv in my_moves {
-    // elephant
-    let op = &my_mv.operators.1;
-    let flow = valve_map.get(&op.position).unwrap().flow;
-    if flow != 0 && !my_mv.marked.contains(&op.position) {
-      let mut n = my_mv.clone();
-      n.open_elephant(flow);
-      result.push(n);
-    }
-    let cons = connections.get(&op.position).unwrap();
-    for connection in cons {
-      let mut n = my_mv.clone();
-      let op = &mut n.operators.1;
-      if let Some(_) = State::mv_operator(op, *connection) {
-        result.push(n);
-      }
-    }
-  }
-
-  // println!("previous state:");
-  // println!("{current}");
-  // println!("next states");
-  // for state in &result{
-  //   println!("{state}");
-  // }
-  // println!("");
-
-  result
+  distance_map
 }
 
 fn parse(id: &str) -> u16 {
@@ -226,6 +187,10 @@ fn parse(id: &str) -> u16 {
   let left = bytes[0] as u16;
   let right = bytes[1] as u16;
   (left << 8) | right
+}
+
+fn un_parse(id: &u16) -> String {
+  String::from_utf8(vec![(id >> 8) as u8, *id as u8]).unwrap()
 }
 
 fn read_file(filename: &str) -> String {
