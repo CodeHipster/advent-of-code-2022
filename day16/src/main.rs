@@ -38,17 +38,27 @@ impl State {
     }
   }
 
-  fn next(&self, distance_map: &HashMap<u16, HashMap<u16, usize>>, valves_to_open: &Vec<Valve>) -> Vec<State>{
+  fn next(&self, distance_map: &HashMap<u16, HashMap<u16, usize>>, valves_to_open: &Vec<Valve>) -> Vec<State> {
     let mut result: Vec<State> = vec![];
     let valves_left = valves_to_open.iter().filter(|v| !self.marked.contains(&v.id)).collect::<Vec<_>>();
+    if self.operators.0.time == 26 && self.operators.1.time == 26 {
+      // both reached the end of the line.
+      return result;
+    }
     if self.operators.0.time <= self.operators.1.time {
       // move self.
       for valve in valves_left {
         let distance = distance_map.get(&self.operators.0.position).unwrap().get(&valve.id).unwrap();
         let time = self.operators.0.time + *distance as u8 + 1;
-        if time >= 26 {
+        if time > 26 {
           // reach the end of the time.
-          return result;
+          let new_state = State {
+            marked: self.marked.clone(),
+            pressure: self.pressure,
+            operators: (Operator::new(valve.id, 26), self.operators.1.clone()),
+          };
+          result.push(new_state);
+          continue;
         }
         let pressure = self.pressure + (26 - time) as u32 * valve.flow as u32;
         let mut marked = self.marked.clone();
@@ -65,9 +75,14 @@ impl State {
       for valve in valves_left {
         let distance = distance_map.get(&self.operators.1.position).unwrap().get(&valve.id).unwrap();
         let time = self.operators.1.time + *distance as u8 + 1;
-        if time >= 26 {
-          // reach the end of the time.
-          return result;
+        if time > 26 {
+          let new_state = State {
+            marked: self.marked.clone(),
+            pressure: self.pressure,
+            operators: (self.operators.0.clone(), Operator::new(valve.id, 26)),
+          };
+          result.push(new_state);
+          continue;
         }
         let pressure = self.pressure + (26 - time) as u32 * valve.flow as u32;
         let mut marked = self.marked.clone();
@@ -75,7 +90,7 @@ impl State {
         let new_state = State {
           marked,
           pressure,
-          operators: (self.operators.0.clone(),Operator::new(valve.id, time)),
+          operators: (self.operators.0.clone(), Operator::new(valve.id, time)),
         };
         result.push(new_state);
       }
