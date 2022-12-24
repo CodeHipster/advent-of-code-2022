@@ -181,8 +181,6 @@ fn main() {
 
   let mut cave = Cave::new(jets);
   
-  
-  // 1514285714288
   let rocks = 1000000000000i64;
   let start = 1741i64;
   let repeat = 1735i64;
