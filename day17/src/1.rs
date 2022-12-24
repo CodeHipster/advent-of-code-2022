@@ -32,7 +32,7 @@ impl Cave {
     Cave { jets, grid, shapes }
   }
 
-  fn simulate(&mut self, rocks: i64) {
+  fn simulate(&mut self, rocks: u64) {
     let mut jet_index = 0;
     let jet_size = self.jets.len();
     let mut shape_index = 0;
@@ -41,19 +41,14 @@ impl Cave {
     // TODO: more efficiently would be a generator stream?
     let mut shape = &self.shapes[shape_index];
     let mut jet = &self.jets[jet_index];
-    let mut prev_height = 0;
-    let mut prev_rocks = 0;
     for r in 0..rocks {
+      if r % 100000000 == 0{
+        println!("1/10000th");
+      }
       //drop a rock until it settles
       let mut shape_pos = (-1, 2); // (row, col) starting point relative to the grid.
       let mut settled = false;
       while !settled {
-        if jet_index == 0 {
-          println!("rocks: {}, diff:{}, height: {}, diff: {}, pos:{:?}, shape: {shape_index}"
-          , r, r - prev_rocks, self.grid.rows(), self.grid.rows() - prev_height, shape_pos);
-          prev_height = self.grid.rows();
-          prev_rocks = r;
-        }
         shape_pos = self.jet(jet, shape, shape_pos);
         jet_index = (jet_index + 1) % jet_size;
         jet = &self.jets[jet_index];
@@ -180,20 +175,9 @@ fn main() {
     .unwrap();
 
   let mut cave = Cave::new(jets);
-  
-  
-  // 1514285714288
-  let rocks = 1000000000000i64;
-  let start = 1741i64;
-  let repeat = 1735i64;
-  let repeat_height = 2695i64;
-  let end = (rocks - start)%repeat;
-  let skipped = rocks - (start + end);
-  println!("mod skip should be 0: {}", skipped % repeat);
-  let skipped_height = (skipped / repeat) * repeat_height;
-  let todo = start + end;
-  cave.simulate(todo);
-  let answer = (cave.grid.rows() - 3) as i64 + skipped_height;
+  cave.simulate(1000000000000);
+
+  let answer = cave.grid.rows() -3;
 
   println!("found answer: {} in {:0.2?}", answer, now.elapsed());
 }
