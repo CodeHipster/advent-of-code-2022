@@ -1,0 +1,8 @@
+[package]
+edition = '2021'
+name = "advent_of_code_day18"
+version = "1.0.0"
+authors = ["Thijs"]
+
+[dependencies]
+alg-grid = "0.1.1"

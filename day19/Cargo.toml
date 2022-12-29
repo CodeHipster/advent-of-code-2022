@@ -1,0 +1,9 @@
+[package]
+edition = '2021'
+name = "advent_of_code_day19"
+version = "1.0.0"
+authors = ["Thijs"]
+
+[dependencies]
+regex = "1.7.0"
+lazy_static = "1.4.0"
