@@ -12,7 +12,7 @@ use crate::mixer::Mixer;
 fn main() {
   let now = Instant::now();
 
-  let nrs = read_file("input.txt").lines().map(|line| line.parse::<i16>().unwrap()).collect::<Vec<_>>();
+  let nrs = read_file("input.txt").lines().map(|line| line.parse::<i64>().unwrap() * 811589153).collect::<Vec<_>>();
 
   let mut mixer = Mixer::new(nrs);
   mixer.mix();
