@@ -1,11 +1,12 @@
-
+#[derive(Debug)]
 pub struct Monkey{
   pub id: String,
   pub action: Action,
 }
 
+#[derive(Debug)]
 pub enum Action{
-  Nr(u16),
+  Nr(i64),
   Add(String, String),
   Sub(String, String),
   Mul(String, String),
