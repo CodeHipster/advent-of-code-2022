@@ -29,5 +29,5 @@ https://adventofcode.com/2022
 | [Day 18](https://adventofcode.com/2022/day/18) | ⭐ | ⭐ |
 | [Day 19](https://adventofcode.com/2022/day/19) | ⭐ | ⭐ |
 | [Day 20](https://adventofcode.com/2022/day/20) | ⭐ | ⭐ |
-| [Day 21](https://adventofcode.com/2022/day/21) | ⭐ |   |
+| [Day 21](https://adventofcode.com/2022/day/21) | ⭐ | ⭐ |
 <!--- advent_readme_stars table --->
