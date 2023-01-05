@@ -7,13 +7,15 @@ use grid::*;
 use regex::Regex;
 
 use crate::map::Action;
+use crate::map::Map;
+use crate::map::Pawn;
 use crate::map::TileType;
 use crate::map::TurnType;
 
 fn main() {
   let now = Instant::now();
 
-  let file = read_file("test.txt");
+  let file = read_file("input.txt");
   let grid_width = file.lines().take_while(|line| *line != "" ).map(|line| line.len()).max().unwrap();
   let mut lines = file.lines();
 
@@ -49,9 +51,15 @@ fn main() {
     }
   }
 
-  
+  let map = Map::new(grid);  
 
-  let answer = 0;
+  let mut pawn = Pawn::new(map.start_pos(), map::Direction::Right, actions);
+
+  pawn.walk(&map);
+
+  map.print_path(&pawn.path);
+
+  let answer = pawn.answer();
 
   println!("found answer: {} in {:0.2?}", answer, now.elapsed());
 }
