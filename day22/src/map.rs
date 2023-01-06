@@ -77,8 +77,10 @@ impl Pawn {
   fn walk_steps(&mut self, steps: usize, map: &Map) {
     for _ in 0..steps {
       let next = self.next_tile(map);
-      if next.variant == TileType::Open {
-        self.loc = next.loc;
+      let tile_type = map.tiles.get(next.0.row, next.0.col).unwrap();
+      if *tile_type == TileType::Open {
+        self.loc = next.0;
+        self.face = next.1;
         self.path.push((self.loc.clone(), self.face.clone()))
       } else {
         // hitting rock, stop walking.
@@ -87,7 +89,7 @@ impl Pawn {
     }
   }
 
-  fn next_tile(&self, map: &Map) -> Tile {
+  fn next_tile(&self, map: &Map) -> (Location, Direction) {
     // get new location
     let (row, col) = match self.face {
       Direction::Up => (self.loc.row as i32 - 1, self.loc.col as i32),
@@ -98,20 +100,17 @@ impl Pawn {
 
     // if out of bounds, we wrap.
     if !map.in_bounds(row, col) {
-      return self.wrap(map);
+      return self.wrap();
     }
 
     // if stepping into the void, we wrap.
     let tile = map.tiles.get(row as usize, col as usize).unwrap();
-    if *tile == TileType::Void{
-      return self.wrap(map);
+    if *tile == TileType::Void {
+      return self.wrap();
     }
 
     // else we just step.
-    Tile {
-      loc: Location { row: row as usize, col: col as usize },
-      variant: map.tiles.get(row as usize, col as usize).unwrap().clone(),
-    }
+    (Location { row: row as usize, col: col as usize }, self.face.clone())
   }
 
   fn turn(&mut self, dir: TurnType) {
@@ -139,39 +138,136 @@ impl Pawn {
     }
   }
 
-  fn wrap(&self, map: &Map) -> Tile {
-    // return the tile that is on the other side.
-    match self.face {
-      Direction::Up => {
-        let tile = map.tiles.iter_col(self.loc.col).enumerate().rev().filter(|(_, t)| **t != TileType::Void).next().unwrap();
-        Tile {
-          loc: Location { row: tile.0, col: self.loc.col },
-          variant: tile.1.clone(),
+  fn wrap(&self) -> (Location, Direction) {
+    let current_side = Map::get_side(self.loc.row, self.loc.col);
+
+    match current_side {
+      Side::Top => {
+        // can wrap to back and left.
+        match self.face {
+          Direction::Up => {
+            // move to left side of back
+            return (Location { row: self.loc.col + 100, col: 0 }, Direction::Right);
+          }
+          Direction::Left => {
+            // move to left side of left
+            return (
+              Location {
+                row: (49 - self.loc.row) + 100,
+                col: 0,
+              },
+              Direction::Right,
+            );
+          }
+          _ => panic!("un expected move from top side."),
         }
       }
-      Direction::Down => {
-        let tile = map.tiles.iter_col(self.loc.col).enumerate().filter(|(_, t)| **t != TileType::Void).next().unwrap();
-        Tile {
-          loc: Location { row: tile.0, col: self.loc.col },
-          variant: tile.1.clone(),
+      Side::Left => {
+        // can wrap to top and front
+        match self.face {
+          Direction::Up => {
+            // move to left side of front
+            return (Location { row: self.loc.col + 50, col: 50 }, Direction::Right);
+          },
+          Direction::Left => {
+            // move to left side of top (upside down)
+            return (
+              Location {
+                row: 49 - (self.loc.row - 100),
+                col: 50,
+              },
+              Direction::Right,
+            );
+          },
+          _ => panic!("un expected move from left side."),
         }
       }
-      Direction::Left => {
-        let tile = map.tiles.iter_row(self.loc.row).enumerate().rev().filter(|(_, t)| **t != TileType::Void).next().unwrap();
-        Tile {
-          loc: Location { row: self.loc.row, col: tile.0 },
-          variant: tile.1.clone(),
+      Side::Right => {
+        // can wrap to back, bottom, front
+        match self.face {
+          Direction::Up => {
+            // move to bottom side of back
+            return (Location { row: 199, col: self.loc.col - 100 }, Direction::Up);
+          },
+          Direction::Down => {
+            // move to right side of front
+            return (Location { row: self.loc.col - 50, col: 99 }, Direction::Left);
+          },
+          Direction::Right => {
+            // move to right side of bottom (upside down)
+            return (
+              Location {
+                row: (49 - self.loc.row) + 100,
+                col: 99,
+              },
+              Direction::Left,
+            );
+          }
+          _ => panic!("un expected move from right side."),
         }
       }
-      Direction::Right => {
-        let tile = map.tiles.iter_row(self.loc.row).enumerate().filter(|(_, t)| **t != TileType::Void).next().unwrap();
-        Tile {
-          loc: Location { row: self.loc.row, col: tile.0 },
-          variant: tile.1.clone(),
+      Side::Front => {
+        // can wrap to back, bottom, front
+        match self.face {
+          Direction::Right => {
+            // move to bottom of right
+            return (Location { row: 49, col: self.loc.row + 50 }, Direction::Up);
+          },
+          Direction::Left => {
+            // move to top side of left
+            return (Location { row: 100, col: self.loc.row - 50 }, Direction::Down);
+          },
+          _ => panic!("un expected move from front side."),
         }
       }
+      //todo: check directions.
+      Side::Back => {
+        match self.face {
+          Direction::Right => {
+            // move to bottom of bottom
+            return (Location { row: 149, col: self.loc.row - 100 }, Direction::Up);
+          },
+          Direction::Left => {
+            // move to top of top
+            return (Location { row: 0, col: self.loc.row - 100 }, Direction::Down);
+          },
+          Direction::Down => {
+            // move to top of right
+            return (Location { row: 0, col: self.loc.col + 100 }, Direction::Down);
+          },
+          _ => panic!("un expected move from back side."),
+        }        
+      },
+      Side::Bottom => {
+        match self.face {
+          Direction::Right => {
+            // move to right side of right (upside down)
+            return (
+              Location {
+                row: (49 - (self.loc.row % 50)),
+                col: 149,
+              },
+              Direction::Left,
+            );
+          },
+          Direction::Down => {
+            // move to right side of back.
+            return (Location { row: self.loc.col + 100, col: 49 }, Direction::Left);
+          },
+          _ => panic!("un expected move from back side."),
+        }  
+      },
     }
   }
+}
+
+pub enum Side {
+  Top,
+  Left,
+  Right,
+  Front,
+  Back,
+  Bottom,
 }
 
 pub struct Map {
@@ -185,12 +281,37 @@ impl Map {
 
   //left most open tile on the first row.
   pub fn start_pos(&self) -> Location {
-    let first_open_col = self.tiles.iter_row(0).enumerate().filter(|(i, t)| **t == TileType::Open).next().unwrap();
+    let first_open_col = self.tiles.iter_row(0).enumerate().filter(|(_i, t)| **t == TileType::Open).next().unwrap();
     Location { row: 0, col: first_open_col.0 }
   }
 
   pub fn in_bounds(&self, row: i32, col: i32) -> bool {
     row >= 0 && (row as usize) < self.tiles.rows() && col >= 0 && (col as usize) < self.tiles.cols()
+  }
+
+  pub fn get_side(row: usize, col: usize) -> Side {
+    let side_size = 50;
+    let between = |value, low, high| value >= low && value < high;
+
+    if between(row, 0 * side_size, 1 * side_size) && between(col, 1 * side_size, 2 * side_size) {
+      return Side::Top;
+    }
+    if between(row, 0 * side_size, 1 * side_size) && between(col, 2 * side_size, 3 * side_size) {
+      return Side::Right;
+    }
+    if between(row, 1 * side_size, 2 * side_size) && between(col, 1 * side_size, 2 * side_size) {
+      return Side::Front;
+    }
+    if between(row, 2 * side_size, 3 * side_size) && between(col, 1 * side_size, 2 * side_size) {
+      return Side::Bottom;
+    }
+    if between(row, 2 * side_size, 3 * side_size) && between(col, 0 * side_size, 1 * side_size) {
+      return Side::Left;
+    }
+    if between(row, 3 * side_size, 4 * side_size) && between(col, 0 * side_size, 1 * side_size) {
+      return Side::Back;
+    }
+    panic!("Unexpected range.")
   }
 
   pub fn print_path(&self, path: &Vec<(Location, Direction)>) {

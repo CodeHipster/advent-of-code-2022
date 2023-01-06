@@ -57,7 +57,7 @@ fn main() {
 
   pawn.walk(&map);
 
-  map.print_path(&pawn.path);
+  // map.print_path(&pawn.path);
 
   let answer = pawn.answer();
 
