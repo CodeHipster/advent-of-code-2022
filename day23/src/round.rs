@@ -23,6 +23,7 @@ impl Round {
     //<current, new>
     let mut new_map: HashMap<XY, XY> = HashMap::new();
 
+    let mut no_more_moves = true;
     elfs.iter().for_each(|elf| {
       let all_neighbours = Round::neighbours(elfs, elf.all_sides());
       if all_neighbours.is_empty() {
@@ -30,6 +31,7 @@ impl Round {
         new_map.insert(*elf, *elf);
         return;
       }
+      no_more_moves = false;
       // check each direction if there is no neighbours
       let mut direction = self.dir.clone();
       for _ in 0..4 {
@@ -48,6 +50,10 @@ impl Round {
         // not being able to move.
         new_map.insert(*elf, *elf);
     });
+
+    if no_more_moves {
+      println!("no more moves in round: {}", self.nr)
+    }
 
     //modify new_map to not move for new XY values that have size > 1 in the proposed map.
     proposed.iter().filter(|(_, count)| **count > 1).for_each(|(xy_proposed, _)| {

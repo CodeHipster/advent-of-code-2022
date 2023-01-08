@@ -2,7 +2,6 @@ mod round;
 mod twod;
 
 use std::collections::HashSet;
-use std::fmt::write;
 use std::fs;
 use std::str;
 use std::time::Instant;
@@ -24,9 +23,9 @@ fn main() {
 
   let mut round = Round::new();
   // play 10 round on elves.
-  for _ in 0..10{
+  for _ in 0..990{
     elfs = round.play(&elfs);
-    print(&elfs);
+    // print(&elfs);
     round.next();
   };
 
