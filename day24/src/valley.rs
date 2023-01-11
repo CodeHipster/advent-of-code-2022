@@ -14,9 +14,9 @@ impl Display for Valley {
     for y in self.walls.0.y..=self.walls.1.y {
       for x in self.walls.0.x..=self.walls.1.x {
         if x == self.start.x && y == self.start.y {
-          write!(f, "S")?;
+          write!(f, ".")?;
         } else if x == self.end.x && y == self.end.y {
-          write!(f, "E")?;
+          write!(f, ".")?;
         } else if y == self.walls.0.y || y == self.walls.1.y {
           write!(f, "#")?;
         } else if x == self.walls.0.x || x == self.walls.1.x {
@@ -38,10 +38,11 @@ impl Display for Valley {
 
 impl Valley {
   pub fn new(blizzards: Vec<Blizzard>, walls: (XY, XY)) -> Valley {
+    let start = XY::new(1, 0);
     let end = walls.1 + (-1, 0);
     Valley {
       blizzards,
-      start: XY::new(1, 0),
+      start,
       end,
       walls,
     }

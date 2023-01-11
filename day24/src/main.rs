@@ -33,11 +33,21 @@ fn main() {
       _ => panic!("unexpected char."),
     });
 
-    let min = min(&walls);
-    let max = max(&walls);
+  let min = min(&walls);
+  let max = max(&walls);
 
-    let valley = Valley::new(blizzards, (min, max));
-    let answer = path_finder::find_path(valley);
+  let valley = Valley::new(blizzards, (min, max));
+  let mut way1 = path_finder::find_path(valley);
+  let temp_start = way1.1.start;
+  way1.1.start = way1.1.end;
+  way1.1.end = temp_start;
+  let mut way2 = path_finder::find_path(way1.1);
+  let temp_start = way2.1.start;
+  way2.1.start = way2.1.end;
+  way2.1.end = temp_start;
+  let way3 = path_finder::find_path(way2.1);
+
+  let answer = way1.0 + way2.0 + way3.0;
 
   println!("found answer: {} in {:0.2?}", answer, now.elapsed());
 }

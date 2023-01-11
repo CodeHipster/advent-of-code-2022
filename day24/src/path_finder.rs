@@ -21,7 +21,7 @@ impl State {
 }
 
 // depth first search, with heuristics
-pub fn find_path(valley: Valley) -> u32 {
+pub fn find_path(valley: Valley) -> (u32, Valley) {
   // keep map of blizzard state with regards to time.
   // <time, <(blizzard location, blizzards)>>
   let mut blizzard_time_map: HashMap<u32, HashSet<XY>> = HashMap::new();
@@ -49,15 +49,15 @@ pub fn find_path(valley: Valley) -> u32 {
       continue;
     }
 
-    if visited.contains(&state){
+    if visited.contains(&state) {
       continue;
     }
-    
+
     if state.distance == 0 {
       // reached target
       if state.time >= shortest_time {
         // we can return because the states are ordered on lowest time first.
-        return shortest_time;
+        return (shortest_time, valley_time_map.remove(&shortest_time).unwrap());
       } else {
         shortest_time = state.time;
         println!("Found path in {shortest_time} steps");
@@ -95,14 +95,8 @@ pub fn find_path(valley: Valley) -> u32 {
     visited.insert(state);
   }
 
-  // print winning state
-  for i in 0..valley_time_map.len(){
-    println!("Minute: {i}");
-    println!("{}",valley_time_map.get(&(i as u32)).unwrap());
-  }
-
   // ran out of states, return the shortest time to end.
-  shortest_time
+  (shortest_time, valley_time_map.remove(&shortest_time).unwrap())
 }
 
 // (min, max)

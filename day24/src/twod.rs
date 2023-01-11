@@ -75,7 +75,7 @@ impl XY {
   }
 
   pub fn manhattan(self) -> i64{
-    self.x + self.y
+    self.x.abs() + self.y.abs()
   }
 
   pub fn all_sides(&self) -> Vec<XY> {
